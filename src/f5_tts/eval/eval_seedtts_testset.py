@@ -22,11 +22,17 @@ rel_path = str(files("f5_tts").joinpath("../../"))
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-e", "--eval_task", type=str, default="wer", choices=["sim", "wer"])
+    parser.add_argument(
+        "-e", "--eval_task", type=str, default="wer", choices=["sim", "wer"]
+    )
     parser.add_argument("-l", "--lang", type=str, default="en", choices=["zh", "en"])
     parser.add_argument("-g", "--gen_wav_dir", type=str, required=True)
-    parser.add_argument("-n", "--gpu_nums", type=int, default=8, help="Number of GPUs to use")
-    parser.add_argument("--local", action="store_true", help="Use local custom checkpoint directory")
+    parser.add_argument(
+        "-n", "--gpu_nums", type=int, default=8, help="Number of GPUs to use"
+    )
+    parser.add_argument(
+        "--local", action="store_true", help="Use local custom checkpoint directory"
+    )
     return parser.parse_args()
 
 
@@ -57,7 +63,10 @@ def main():
     if eval_task == "wer":
         wers = []
         with mp.Pool(processes=len(gpus)) as pool:
-            args = [(rank, lang, sub_test_set, asr_ckpt_dir) for (rank, sub_test_set) in test_set]
+            args = [
+                (rank, lang, sub_test_set, asr_ckpt_dir)
+                for (rank, sub_test_set) in test_set
+            ]
             results = pool.map(run_asr_wer, args)
             for wers_ in results:
                 wers.extend(wers_)
@@ -70,7 +79,10 @@ def main():
     if eval_task == "sim":
         sim_list = []
         with mp.Pool(processes=len(gpus)) as pool:
-            args = [(rank, sub_test_set, wavlm_ckpt_dir) for (rank, sub_test_set) in test_set]
+            args = [
+                (rank, sub_test_set, wavlm_ckpt_dir)
+                for (rank, sub_test_set) in test_set
+            ]
             results = pool.map(run_sim, args)
             for sim_ in results:
                 sim_list.extend(sim_)

@@ -10,7 +10,11 @@ from f5_tts.infer.utils_infer import load_checkpoint, load_vocoder, save_spectro
 from f5_tts.model import CFM, DiT, UNetT
 from f5_tts.model.utils import convert_char_to_pinyin, get_tokenizer
 
-device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
+device = (
+    "cuda"
+    if torch.cuda.is_available()
+    else "mps" if torch.backends.mps.is_available() else "cpu"
+)
 
 
 # --------------------- Dataset Settings -------------------- #
@@ -42,7 +46,9 @@ speed = 1.0
 
 if exp_name == "F5TTS_Base":
     model_cls = DiT
-    model_cfg = dict(dim=1024, depth=22, heads=16, ff_mult=2, text_dim=512, conv_layers=4)
+    model_cfg = dict(
+        dim=1024, depth=22, heads=16, ff_mult=2, text_dim=512, conv_layers=4
+    )
 
 elif exp_name == "E2TTS_Base":
     model_cls = UNetT
@@ -91,14 +97,18 @@ if mel_spec_type == "vocos":
     vocoder_local_path = "../checkpoints/charactr/vocos-mel-24khz"
 elif mel_spec_type == "bigvgan":
     vocoder_local_path = "../checkpoints/bigvgan_v2_24khz_100band_256x"
-vocoder = load_vocoder(vocoder_name=mel_spec_type, is_local=local, local_path=vocoder_local_path)
+vocoder = load_vocoder(
+    vocoder_name=mel_spec_type, is_local=local, local_path=vocoder_local_path
+)
 
 # Tokenizer
 vocab_char_map, vocab_size = get_tokenizer(dataset_name, tokenizer)
 
 # Model
 model = CFM(
-    transformer=model_cls(**model_cfg, text_num_embeds=vocab_size, mel_dim=n_mel_channels),
+    transformer=model_cls(
+        **model_cfg, text_num_embeds=vocab_size, mel_dim=n_mel_channels
+    ),
     mel_spec_kwargs=dict(
         n_fft=n_fft,
         hop_length=hop_length,
@@ -134,7 +144,14 @@ for part in parts_to_edit:
     part_dur = end - start if fix_duration is None else fix_duration.pop(0)
     part_dur = part_dur * target_sample_rate
     start = start * target_sample_rate
-    audio_ = torch.cat((audio_, audio[:, round(offset) : round(start)], torch.zeros(1, round(part_dur))), dim=-1)
+    audio_ = torch.cat(
+        (
+            audio_,
+            audio[:, round(offset) : round(start)],
+            torch.zeros(1, round(part_dur)),
+        ),
+        dim=-1,
+    )
     edit_mask = torch.cat(
         (
             edit_mask,
@@ -145,7 +162,9 @@ for part in parts_to_edit:
     )
     offset = end * target_sample_rate
 # audio = torch.cat((audio_, audio[:, round(offset):]), dim = -1)
-edit_mask = F.pad(edit_mask, (0, audio.shape[-1] // hop_length - edit_mask.shape[-1] + 1), value=True)
+edit_mask = F.pad(
+    edit_mask, (0, audio.shape[-1] // hop_length - edit_mask.shape[-1] + 1), value=True
+)
 audio = audio.to(device)
 edit_mask = edit_mask.to(device)
 
@@ -189,5 +208,7 @@ with torch.inference_mode():
         generated_wave = generated_wave * rms / target_rms
 
     save_spectrogram(gen_mel_spec[0].cpu().numpy(), f"{output_dir}/speech_edit_out.png")
-    torchaudio.save(f"{output_dir}/speech_edit_out.wav", generated_wave, target_sample_rate)
+    torchaudio.save(
+        f"{output_dir}/speech_edit_out.wav", generated_wave, target_sample_rate
+    )
     print(f"Generated wav: {generated_wave.shape}")

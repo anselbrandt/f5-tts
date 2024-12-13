@@ -46,8 +46,12 @@ def main():
     parser.add_argument("-d", "--dataset", default="Emilia_ZH_EN")
     parser.add_argument("-n", "--expname", required=True)
     parser.add_argument("-c", "--ckptstep", default=1200000, type=int)
-    parser.add_argument("-m", "--mel_spec_type", default="vocos", type=str, choices=["bigvgan", "vocos"])
-    parser.add_argument("-to", "--tokenizer", default="pinyin", type=str, choices=["pinyin", "char"])
+    parser.add_argument(
+        "-m", "--mel_spec_type", default="vocos", type=str, choices=["bigvgan", "vocos"]
+    )
+    parser.add_argument(
+        "-to", "--tokenizer", default="pinyin", type=str, choices=["pinyin", "char"]
+    )
 
     parser.add_argument("-nfe", "--nfestep", default=32, type=int)
     parser.add_argument("-o", "--odemethod", default="euler")
@@ -79,7 +83,9 @@ def main():
 
     if exp_name == "F5TTS_Base":
         model_cls = DiT
-        model_cfg = dict(dim=1024, depth=22, heads=16, ff_mult=2, text_dim=512, conv_layers=4)
+        model_cfg = dict(
+            dim=1024, depth=22, heads=16, ff_mult=2, text_dim=512, conv_layers=4
+        )
 
     elif exp_name == "E2TTS_Base":
         model_cls = UNetT
@@ -87,8 +93,12 @@ def main():
 
     if testset == "ls_pc_test_clean":
         metalst = rel_path + "/data/librispeech_pc_test_clean_cross_sentence.lst"
-        librispeech_test_clean_path = "<SOME_PATH>/LibriSpeech/test-clean"  # test-clean path
-        metainfo = get_librispeech_test_clean_metainfo(metalst, librispeech_test_clean_path)
+        librispeech_test_clean_path = (
+            "<SOME_PATH>/LibriSpeech/test-clean"  # test-clean path
+        )
+        metainfo = get_librispeech_test_clean_metainfo(
+            metalst, librispeech_test_clean_path
+        )
 
     elif testset == "seedtts_test_zh":
         metalst = rel_path + "/data/seedtts_testset/zh/meta.lst"
@@ -132,14 +142,18 @@ def main():
         vocoder_local_path = "../checkpoints/charactr/vocos-mel-24khz"
     elif mel_spec_type == "bigvgan":
         vocoder_local_path = "../checkpoints/bigvgan_v2_24khz_100band_256x"
-    vocoder = load_vocoder(vocoder_name=mel_spec_type, is_local=local, local_path=vocoder_local_path)
+    vocoder = load_vocoder(
+        vocoder_name=mel_spec_type, is_local=local, local_path=vocoder_local_path
+    )
 
     # Tokenizer
     vocab_char_map, vocab_size = get_tokenizer(dataset_name, tokenizer)
 
     # Model
     model = CFM(
-        transformer=model_cls(**model_cfg, text_num_embeds=vocab_size, mel_dim=n_mel_channels),
+        transformer=model_cls(
+            **model_cfg, text_num_embeds=vocab_size, mel_dim=n_mel_channels
+        ),
         mel_spec_kwargs=dict(
             n_fft=n_fft,
             hop_length=hop_length,
@@ -166,7 +180,14 @@ def main():
 
     with accelerator.split_between_processes(prompts_all) as prompts:
         for prompt in tqdm(prompts, disable=not accelerator.is_local_main_process):
-            utts, ref_rms_list, ref_mels, ref_mel_lens, total_mel_lens, final_text_list = prompt
+            (
+                utts,
+                ref_rms_list,
+                ref_mels,
+                ref_mel_lens,
+                total_mel_lens,
+                final_text_list,
+            ) = prompt
             ref_mels = ref_mels.to(device)
             ref_mel_lens = torch.tensor(ref_mel_lens, dtype=torch.long).to(device)
             total_mel_lens = torch.tensor(total_mel_lens, dtype=torch.long).to(device)
@@ -195,7 +216,11 @@ def main():
 
                     if ref_rms_list[i] < target_rms:
                         generated_wave = generated_wave * ref_rms_list[i] / target_rms
-                    torchaudio.save(f"{output_dir}/{utts[i]}.wav", generated_wave, target_sample_rate)
+                    torchaudio.save(
+                        f"{output_dir}/{utts[i]}.wav",
+                        generated_wave,
+                        target_sample_rate,
+                    )
 
     accelerator.wait_for_everyone()
     if accelerator.is_main_process:

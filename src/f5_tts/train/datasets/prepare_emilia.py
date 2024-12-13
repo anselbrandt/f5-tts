@@ -122,7 +122,11 @@ def deal_with_audio_dir(audio_dir):
             obj = json.loads(line)
             text = obj["text"]
             if obj["language"] == "zh":
-                if obj["wav"].split("/")[1] in out_zh or any(f in text for f in zh_filters) or repetition_found(text):
+                if (
+                    obj["wav"].split("/")[1] in out_zh
+                    or any(f in text for f in zh_filters)
+                    or repetition_found(text)
+                ):
                     bad_case_zh += 1
                     continue
                 else:
@@ -140,7 +144,13 @@ def deal_with_audio_dir(audio_dir):
             if tokenizer == "pinyin":
                 text = convert_char_to_pinyin([text], polyphone=polyphone)[0]
             duration = obj["duration"]
-            sub_result.append({"audio_path": str(audio_dir.parent / obj["wav"]), "text": text, "duration": duration})
+            sub_result.append(
+                {
+                    "audio_path": str(audio_dir.parent / obj["wav"]),
+                    "text": text,
+                    "duration": duration,
+                }
+            )
             durations.append(duration)
             vocab_set.update(list(text))
     return sub_result, durations, vocab_set, bad_case_zh, bad_case_en

@@ -25,7 +25,9 @@ def main():
             duration = sf.info(wav_path).duration
             if duration < 0.4 or duration > 30:
                 continue
-            result.append({"audio_path": str(wav_path), "text": norm_text, "duration": duration})
+            result.append(
+                {"audio_path": str(wav_path), "text": norm_text, "duration": duration}
+            )
             duration_list.append(duration)
             text_vocab_set.update(list(norm_text))
 

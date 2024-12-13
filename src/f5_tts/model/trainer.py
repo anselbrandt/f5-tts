@@ -67,7 +67,13 @@ class Trainer:
         self.logger = logger
         if self.logger == "wandb":
             if exists(wandb_resume_id):
-                init_kwargs = {"wandb": {"resume": "allow", "name": wandb_run_name, "id": wandb_resume_id}}
+                init_kwargs = {
+                    "wandb": {
+                        "resume": "allow",
+                        "name": wandb_run_name,
+                        "id": wandb_resume_id,
+                    }
+                }
             else:
                 init_kwargs = {"wandb": {"resume": "allow", "name": wandb_run_name}}
 
@@ -102,7 +108,9 @@ class Trainer:
         self.epochs = epochs
         self.num_warmup_updates = num_warmup_updates
         self.save_per_updates = save_per_updates
-        self.last_per_steps = default(last_per_steps, save_per_updates * grad_accumulation_steps)
+        self.last_per_steps = default(
+            last_per_steps, save_per_updates * grad_accumulation_steps
+        )
         self.checkpoint_path = default(checkpoint_path, "ckpts/test_e2-tts")
 
         self.batch_size = batch_size
@@ -126,7 +134,9 @@ class Trainer:
             self.optimizer = bnb.optim.AdamW8bit(model.parameters(), lr=learning_rate)
         else:
             self.optimizer = AdamW(model.parameters(), lr=learning_rate)
-        self.model, self.optimizer = self.accelerator.prepare(self.model, self.optimizer)
+        self.model, self.optimizer = self.accelerator.prepare(
+            self.model, self.optimizer
+        )
 
     @property
     def is_main(self):
@@ -137,7 +147,9 @@ class Trainer:
         if self.is_main:
             checkpoint = dict(
                 model_state_dict=self.accelerator.unwrap_model(self.model).state_dict(),
-                optimizer_state_dict=self.accelerator.unwrap_model(self.optimizer).state_dict(),
+                optimizer_state_dict=self.accelerator.unwrap_model(
+                    self.optimizer
+                ).state_dict(),
                 ema_model_state_dict=self.ema_model.state_dict(),
                 scheduler_state_dict=self.scheduler.state_dict(),
                 step=step,
@@ -145,16 +157,23 @@ class Trainer:
             if not os.path.exists(self.checkpoint_path):
                 os.makedirs(self.checkpoint_path)
             if last:
-                self.accelerator.save(checkpoint, f"{self.checkpoint_path}/model_last.pt")
+                self.accelerator.save(
+                    checkpoint, f"{self.checkpoint_path}/model_last.pt"
+                )
                 print(f"Saved last checkpoint at step {step}")
             else:
-                self.accelerator.save(checkpoint, f"{self.checkpoint_path}/model_{step}.pt")
+                self.accelerator.save(
+                    checkpoint, f"{self.checkpoint_path}/model_{step}.pt"
+                )
 
     def load_checkpoint(self):
         if (
             not exists(self.checkpoint_path)
             or not os.path.exists(self.checkpoint_path)
-            or not any(filename.endswith(".pt") for filename in os.listdir(self.checkpoint_path))
+            or not any(
+                filename.endswith(".pt")
+                for filename in os.listdir(self.checkpoint_path)
+            )
         ):
             return 0
 
@@ -167,10 +186,17 @@ class Trainer:
                 key=lambda x: int("".join(filter(str.isdigit, x))),
             )[-1]
         # checkpoint = torch.load(f"{self.checkpoint_path}/{latest_checkpoint}", map_location=self.accelerator.device)  # rather use accelerator.load_state ಥ_ಥ
-        checkpoint = torch.load(f"{self.checkpoint_path}/{latest_checkpoint}", weights_only=True, map_location="cpu")
+        checkpoint = torch.load(
+            f"{self.checkpoint_path}/{latest_checkpoint}",
+            weights_only=True,
+            map_location="cpu",
+        )
 
         # patch for backward compatibility, 305e3ea
-        for key in ["ema_model.mel_spec.mel_stft.mel_scale.fb", "ema_model.mel_spec.mel_stft.spectrogram.window"]:
+        for key in [
+            "ema_model.mel_spec.mel_stft.mel_scale.fb",
+            "ema_model.mel_spec.mel_stft.spectrogram.window",
+        ]:
             if key in checkpoint["ema_model_state_dict"]:
                 del checkpoint["ema_model_state_dict"][key]
 
@@ -179,12 +205,19 @@ class Trainer:
 
         if "step" in checkpoint:
             # patch for backward compatibility, 305e3ea
-            for key in ["mel_spec.mel_stft.mel_scale.fb", "mel_spec.mel_stft.spectrogram.window"]:
+            for key in [
+                "mel_spec.mel_stft.mel_scale.fb",
+                "mel_spec.mel_stft.spectrogram.window",
+            ]:
                 if key in checkpoint["model_state_dict"]:
                     del checkpoint["model_state_dict"][key]
 
-            self.accelerator.unwrap_model(self.model).load_state_dict(checkpoint["model_state_dict"])
-            self.accelerator.unwrap_model(self.optimizer).load_state_dict(checkpoint["optimizer_state_dict"])
+            self.accelerator.unwrap_model(self.model).load_state_dict(
+                checkpoint["model_state_dict"]
+            )
+            self.accelerator.unwrap_model(self.optimizer).load_state_dict(
+                checkpoint["optimizer_state_dict"]
+            )
             if self.scheduler:
                 self.scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
             step = checkpoint["step"]
@@ -194,21 +227,34 @@ class Trainer:
                 for k, v in checkpoint["ema_model_state_dict"].items()
                 if k not in ["initted", "step"]
             }
-            self.accelerator.unwrap_model(self.model).load_state_dict(checkpoint["model_state_dict"])
+            self.accelerator.unwrap_model(self.model).load_state_dict(
+                checkpoint["model_state_dict"]
+            )
             step = 0
 
         del checkpoint
         gc.collect()
         return step
 
-    def train(self, train_dataset: Dataset, num_workers=16, resumable_with_seed: int = None):
+    def train(
+        self, train_dataset: Dataset, num_workers=16, resumable_with_seed: int = None
+    ):
         if self.log_samples:
-            from f5_tts.infer.utils_infer import cfg_strength, load_vocoder, nfe_step, sway_sampling_coef
+            from f5_tts.infer.utils_infer import (
+                cfg_strength,
+                load_vocoder,
+                nfe_step,
+                sway_sampling_coef,
+            )
 
             vocoder = load_vocoder(
-                vocoder_name=self.vocoder_name, is_local=self.is_local_vocoder, local_path=self.local_vocoder_path
+                vocoder_name=self.vocoder_name,
+                is_local=self.is_local_vocoder,
+                local_path=self.local_vocoder_path,
             )
-            target_sample_rate = self.accelerator.unwrap_model(self.model).mel_spec.target_sample_rate
+            target_sample_rate = self.accelerator.unwrap_model(
+                self.model
+            ).mel_spec.target_sample_rate
             log_samples_path = f"{self.checkpoint_path}/samples"
             os.makedirs(log_samples_path, exist_ok=True)
 
@@ -233,7 +279,11 @@ class Trainer:
             self.accelerator.even_batches = False
             sampler = SequentialSampler(train_dataset)
             batch_sampler = DynamicBatchSampler(
-                sampler, self.batch_size, max_samples=self.max_samples, random_seed=resumable_with_seed, drop_last=False
+                sampler,
+                self.batch_size,
+                max_samples=self.max_samples,
+                random_seed=resumable_with_seed,
+                drop_last=False,
             )
             train_dataloader = DataLoader(
                 train_dataset,
@@ -244,7 +294,9 @@ class Trainer:
                 batch_sampler=batch_sampler,
             )
         else:
-            raise ValueError(f"batch_size_type must be either 'sample' or 'frame', but received {self.batch_size_type}")
+            raise ValueError(
+                f"batch_size_type must be either 'sample' or 'frame', but received {self.batch_size_type}"
+            )
 
         #  accelerator.prepare() dispatches batches to devices;
         #  which means the length of dataloader calculated before, should consider the number of devices
@@ -254,10 +306,16 @@ class Trainer:
         # otherwise by default with split_batches=False, warmup steps change with num_processes
         total_steps = len(train_dataloader) * self.epochs / self.grad_accumulation_steps
         decay_steps = total_steps - warmup_steps
-        warmup_scheduler = LinearLR(self.optimizer, start_factor=1e-8, end_factor=1.0, total_iters=warmup_steps)
-        decay_scheduler = LinearLR(self.optimizer, start_factor=1.0, end_factor=1e-8, total_iters=decay_steps)
+        warmup_scheduler = LinearLR(
+            self.optimizer, start_factor=1e-8, end_factor=1.0, total_iters=warmup_steps
+        )
+        decay_scheduler = LinearLR(
+            self.optimizer, start_factor=1.0, end_factor=1e-8, total_iters=decay_steps
+        )
         self.scheduler = SequentialLR(
-            self.optimizer, schedulers=[warmup_scheduler, decay_scheduler], milestones=[warmup_steps]
+            self.optimizer,
+            schedulers=[warmup_scheduler, decay_scheduler],
+            milestones=[warmup_steps],
         )
         train_dataloader, self.scheduler = self.accelerator.prepare(
             train_dataloader, self.scheduler
@@ -269,7 +327,9 @@ class Trainer:
             orig_epoch_step = len(train_dataloader)
             skipped_epoch = int(start_step // orig_epoch_step)
             skipped_batch = start_step % orig_epoch_step
-            skipped_dataloader = self.accelerator.skip_first_batches(train_dataloader, num_batches=skipped_batch)
+            skipped_dataloader = self.accelerator.skip_first_batches(
+                train_dataloader, num_batches=skipped_batch
+            )
         else:
             skipped_epoch = 0
 
@@ -299,17 +359,29 @@ class Trainer:
                     mel_lengths = batch["mel_lengths"]
 
                     # TODO. add duration predictor training
-                    if self.duration_predictor is not None and self.accelerator.is_local_main_process:
-                        dur_loss = self.duration_predictor(mel_spec, lens=batch.get("durations"))
-                        self.accelerator.log({"duration loss": dur_loss.item()}, step=global_step)
+                    if (
+                        self.duration_predictor is not None
+                        and self.accelerator.is_local_main_process
+                    ):
+                        dur_loss = self.duration_predictor(
+                            mel_spec, lens=batch.get("durations")
+                        )
+                        self.accelerator.log(
+                            {"duration loss": dur_loss.item()}, step=global_step
+                        )
 
                     loss, cond, pred = self.model(
-                        mel_spec, text=text_inputs, lens=mel_lengths, noise_scheduler=self.noise_scheduler
+                        mel_spec,
+                        text=text_inputs,
+                        lens=mel_lengths,
+                        noise_scheduler=self.noise_scheduler,
                     )
                     self.accelerator.backward(loss)
 
                     if self.max_grad_norm > 0 and self.accelerator.sync_gradients:
-                        self.accelerator.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
+                        self.accelerator.clip_grad_norm_(
+                            self.model.parameters(), self.max_grad_norm
+                        )
 
                     self.optimizer.step()
                     self.scheduler.step()
@@ -321,23 +393,35 @@ class Trainer:
                 global_step += 1
 
                 if self.accelerator.is_local_main_process:
-                    self.accelerator.log({"loss": loss.item(), "lr": self.scheduler.get_last_lr()[0]}, step=global_step)
+                    self.accelerator.log(
+                        {"loss": loss.item(), "lr": self.scheduler.get_last_lr()[0]},
+                        step=global_step,
+                    )
                     if self.logger == "tensorboard":
                         self.writer.add_scalar("loss", loss.item(), global_step)
-                        self.writer.add_scalar("lr", self.scheduler.get_last_lr()[0], global_step)
+                        self.writer.add_scalar(
+                            "lr", self.scheduler.get_last_lr()[0], global_step
+                        )
 
                 progress_bar.set_postfix(step=str(global_step), loss=loss.item())
 
-                if global_step % (self.save_per_updates * self.grad_accumulation_steps) == 0:
+                if (
+                    global_step % (self.save_per_updates * self.grad_accumulation_steps)
+                    == 0
+                ):
                     self.save_checkpoint(global_step)
 
                     if self.log_samples and self.accelerator.is_local_main_process:
                         ref_audio_len = mel_lengths[0]
                         infer_text = [
-                            text_inputs[0] + ([" "] if isinstance(text_inputs[0], list) else " ") + text_inputs[0]
+                            text_inputs[0]
+                            + ([" "] if isinstance(text_inputs[0], list) else " ")
+                            + text_inputs[0]
                         ]
                         with torch.inference_mode():
-                            generated, _ = self.accelerator.unwrap_model(self.model).sample(
+                            generated, _ = self.accelerator.unwrap_model(
+                                self.model
+                            ).sample(
                                 cond=mel_spec[0][:ref_audio_len].unsqueeze(0),
                                 text=infer_text,
                                 duration=ref_audio_len * 2,
@@ -346,7 +430,11 @@ class Trainer:
                                 sway_sampling_coef=sway_sampling_coef,
                             )
                             generated = generated.to(torch.float32)
-                            gen_mel_spec = generated[:, ref_audio_len:, :].permute(0, 2, 1).to(self.accelerator.device)
+                            gen_mel_spec = (
+                                generated[:, ref_audio_len:, :]
+                                .permute(0, 2, 1)
+                                .to(self.accelerator.device)
+                            )
                             ref_mel_spec = batch["mel"][0].unsqueeze(0)
                             if self.vocoder_name == "vocos":
                                 gen_audio = vocoder.decode(gen_mel_spec).cpu()
@@ -355,8 +443,16 @@ class Trainer:
                                 gen_audio = vocoder(gen_mel_spec).squeeze(0).cpu()
                                 ref_audio = vocoder(ref_mel_spec).squeeze(0).cpu()
 
-                        torchaudio.save(f"{log_samples_path}/step_{global_step}_gen.wav", gen_audio, target_sample_rate)
-                        torchaudio.save(f"{log_samples_path}/step_{global_step}_ref.wav", ref_audio, target_sample_rate)
+                        torchaudio.save(
+                            f"{log_samples_path}/step_{global_step}_gen.wav",
+                            gen_audio,
+                            target_sample_rate,
+                        )
+                        torchaudio.save(
+                            f"{log_samples_path}/step_{global_step}_ref.wav",
+                            ref_audio,
+                            target_sample_rate,
+                        )
 
                 if global_step % self.last_per_steps == 0:
                     self.save_checkpoint(global_step, last=True)

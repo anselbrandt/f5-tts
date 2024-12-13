@@ -19,7 +19,9 @@ from f5_tts.model.utils import (
 )
 
 
-PRETRAINED_VOCAB_PATH = files("f5_tts").joinpath("../../data/Emilia_ZH_EN_pinyin/vocab.txt")
+PRETRAINED_VOCAB_PATH = files("f5_tts").joinpath(
+    "../../data/Emilia_ZH_EN_pinyin/vocab.txt"
+)
 
 
 def is_csv_wavs_format(input_dataset_dir):
@@ -45,7 +47,9 @@ def prepare_csv_wavs_dir(input_dir):
         audio_duration = get_audio_duration(audio_path)
         # assume tokenizer = "pinyin"  ("pinyin" | "char")
         text = convert_char_to_pinyin([text], polyphone=polyphone)[0]
-        sub_result.append({"audio_path": audio_path, "text": text, "duration": audio_duration})
+        sub_result.append(
+            {"audio_path": audio_path, "text": text, "duration": audio_duration}
+        )
         durations.append(audio_duration)
         vocab_set.update(list(text))
 
@@ -117,7 +121,9 @@ def save_prepped_dataset(out_dir, result, duration_list, text_vocab_set, is_fine
 
 def prepare_and_save_set(inp_dir, out_dir, is_finetune: bool = True):
     if is_finetune:
-        assert PRETRAINED_VOCAB_PATH.exists(), f"pretrained vocab.txt not found: {PRETRAINED_VOCAB_PATH}"
+        assert (
+            PRETRAINED_VOCAB_PATH.exists()
+        ), f"pretrained vocab.txt not found: {PRETRAINED_VOCAB_PATH}"
     sub_result, durations, vocab_set = prepare_csv_wavs_dir(inp_dir)
     save_prepped_dataset(out_dir, sub_result, durations, vocab_set, is_finetune)
 
@@ -126,9 +132,17 @@ def cli():
     # finetune: python scripts/prepare_csv_wavs.py /path/to/input_dir /path/to/output_dir_pinyin
     # pretrain: python scripts/prepare_csv_wavs.py /path/to/output_dir_pinyin --pretrain
     parser = argparse.ArgumentParser(description="Prepare and save dataset.")
-    parser.add_argument("inp_dir", type=str, help="Input directory containing the data.")
-    parser.add_argument("out_dir", type=str, help="Output directory to save the prepared data.")
-    parser.add_argument("--pretrain", action="store_true", help="Enable for new pretrain, otherwise is a fine-tune")
+    parser.add_argument(
+        "inp_dir", type=str, help="Input directory containing the data."
+    )
+    parser.add_argument(
+        "out_dir", type=str, help="Output directory to save the prepared data."
+    )
+    parser.add_argument(
+        "--pretrain",
+        action="store_true",
+        help="Enable for new pretrain, otherwise is a fine-tune",
+    )
 
     args = parser.parse_args()
 

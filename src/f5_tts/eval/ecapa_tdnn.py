@@ -18,7 +18,16 @@ class Res2Conv1dReluBn(nn.Module):
     in_channels == out_channels == channels
     """
 
-    def __init__(self, channels, kernel_size=1, stride=1, padding=0, dilation=1, bias=True, scale=4):
+    def __init__(
+        self,
+        channels,
+        kernel_size=1,
+        stride=1,
+        padding=0,
+        dilation=1,
+        bias=True,
+        scale=4,
+    ):
         super().__init__()
         assert channels % scale == 0, "{} % {} != 0".format(channels, scale)
         self.scale = scale
@@ -28,7 +37,17 @@ class Res2Conv1dReluBn(nn.Module):
         self.convs = []
         self.bns = []
         for i in range(self.nums):
-            self.convs.append(nn.Conv1d(self.width, self.width, kernel_size, stride, padding, dilation, bias=bias))
+            self.convs.append(
+                nn.Conv1d(
+                    self.width,
+                    self.width,
+                    kernel_size,
+                    stride,
+                    padding,
+                    dilation,
+                    bias=bias,
+                )
+            )
             self.bns.append(nn.BatchNorm1d(self.width))
         self.convs = nn.ModuleList(self.convs)
         self.bns = nn.ModuleList(self.bns)
@@ -57,9 +76,20 @@ class Res2Conv1dReluBn(nn.Module):
 
 
 class Conv1dReluBn(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size=1, stride=1, padding=0, dilation=1, bias=True):
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        kernel_size=1,
+        stride=1,
+        padding=0,
+        dilation=1,
+        bias=True,
+    ):
         super().__init__()
-        self.conv = nn.Conv1d(in_channels, out_channels, kernel_size, stride, padding, dilation, bias=bias)
+        self.conv = nn.Conv1d(
+            in_channels, out_channels, kernel_size, stride, padding, dilation, bias=bias
+        )
         self.bn = nn.BatchNorm1d(out_channels)
 
     def forward(self, x):
@@ -98,11 +128,27 @@ class SE_Connect(nn.Module):
 
 
 class SE_Res2Block(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, stride, padding, dilation, scale, se_bottleneck_dim):
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        kernel_size,
+        stride,
+        padding,
+        dilation,
+        scale,
+        se_bottleneck_dim,
+    ):
         super().__init__()
-        self.Conv1dReluBn1 = Conv1dReluBn(in_channels, out_channels, kernel_size=1, stride=1, padding=0)
-        self.Res2Conv1dReluBn = Res2Conv1dReluBn(out_channels, kernel_size, stride, padding, dilation, scale=scale)
-        self.Conv1dReluBn2 = Conv1dReluBn(out_channels, out_channels, kernel_size=1, stride=1, padding=0)
+        self.Conv1dReluBn1 = Conv1dReluBn(
+            in_channels, out_channels, kernel_size=1, stride=1, padding=0
+        )
+        self.Res2Conv1dReluBn = Res2Conv1dReluBn(
+            out_channels, kernel_size, stride, padding, dilation, scale=scale
+        )
+        self.Conv1dReluBn2 = Conv1dReluBn(
+            out_channels, out_channels, kernel_size=1, stride=1, padding=0
+        )
         self.SE_Connect = SE_Connect(out_channels, se_bottleneck_dim)
 
         self.shortcut = None
@@ -137,15 +183,23 @@ class AttentiveStatsPool(nn.Module):
 
         # Use Conv1d with stride == 1 rather than Linear, then we don't need to transpose inputs.
         if global_context_att:
-            self.linear1 = nn.Conv1d(in_dim * 3, attention_channels, kernel_size=1)  # equals W and b in the paper
+            self.linear1 = nn.Conv1d(
+                in_dim * 3, attention_channels, kernel_size=1
+            )  # equals W and b in the paper
         else:
-            self.linear1 = nn.Conv1d(in_dim, attention_channels, kernel_size=1)  # equals W and b in the paper
-        self.linear2 = nn.Conv1d(attention_channels, in_dim, kernel_size=1)  # equals V and k in the paper
+            self.linear1 = nn.Conv1d(
+                in_dim, attention_channels, kernel_size=1
+            )  # equals W and b in the paper
+        self.linear2 = nn.Conv1d(
+            attention_channels, in_dim, kernel_size=1
+        )  # equals V and k in the paper
 
     def forward(self, x):
         if self.global_context_att:
             context_mean = torch.mean(x, dim=-1, keepdim=True).expand_as(x)
-            context_std = torch.sqrt(torch.var(x, dim=-1, keepdim=True) + 1e-10).expand_as(x)
+            context_std = torch.sqrt(
+                torch.var(x, dim=-1, keepdim=True) + 1e-10
+            ).expand_as(x)
             x_in = torch.cat((x, context_mean, context_std), dim=1)
         else:
             x_in = x
@@ -183,24 +237,36 @@ class ECAPA_TDNN(nn.Module):
         torch.hub._validate_not_a_forked_repo = lambda a, b, c: True
         try:
             local_s3prl_path = os.path.expanduser("~/.cache/torch/hub/s3prl_s3prl_main")
-            self.feature_extract = torch.hub.load(local_s3prl_path, feat_type, source="local", config_path=config_path)
+            self.feature_extract = torch.hub.load(
+                local_s3prl_path, feat_type, source="local", config_path=config_path
+            )
         except:  # noqa: E722
             self.feature_extract = torch.hub.load("s3prl/s3prl", feat_type)
 
         if len(self.feature_extract.model.encoder.layers) == 24 and hasattr(
             self.feature_extract.model.encoder.layers[23].self_attn, "fp32_attention"
         ):
-            self.feature_extract.model.encoder.layers[23].self_attn.fp32_attention = False
+            self.feature_extract.model.encoder.layers[23].self_attn.fp32_attention = (
+                False
+            )
         if len(self.feature_extract.model.encoder.layers) == 24 and hasattr(
             self.feature_extract.model.encoder.layers[11].self_attn, "fp32_attention"
         ):
-            self.feature_extract.model.encoder.layers[11].self_attn.fp32_attention = False
+            self.feature_extract.model.encoder.layers[11].self_attn.fp32_attention = (
+                False
+            )
 
         self.feat_num = self.get_feat_num()
         self.feature_weight = nn.Parameter(torch.zeros(self.feat_num))
 
         if feat_type != "fbank" and feat_type != "mfcc":
-            freeze_list = ["final_proj", "label_embs_concat", "mask_emb", "project_q", "quantizer"]
+            freeze_list = [
+                "final_proj",
+                "label_embs_concat",
+                "mask_emb",
+                "project_q",
+                "quantizer",
+            ]
             for name, param in self.feature_extract.named_parameters():
                 for freeze_val in freeze_list:
                     if freeze_val in name:
@@ -251,7 +317,9 @@ class ECAPA_TDNN(nn.Module):
         cat_channels = channels * 3
         self.conv = nn.Conv1d(cat_channels, self.channels[-1], kernel_size=1)
         self.pooling = AttentiveStatsPool(
-            self.channels[-1], attention_channels=128, global_context_att=global_context_att
+            self.channels[-1],
+            attention_channels=128,
+            global_context_att=global_context_att,
         )
         self.bn = nn.BatchNorm1d(self.channels[-1] * 2)
         self.linear = nn.Linear(self.channels[-1] * 2, emb_dim)
@@ -286,7 +354,12 @@ class ECAPA_TDNN(nn.Module):
                 x = torch.stack(x, dim=0)
             else:
                 x = x.unsqueeze(0)
-            norm_weights = F.softmax(self.feature_weight, dim=-1).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
+            norm_weights = (
+                F.softmax(self.feature_weight, dim=-1)
+                .unsqueeze(-1)
+                .unsqueeze(-1)
+                .unsqueeze(-1)
+            )
             x = (norm_weights * x).sum(dim=0)
             x = torch.transpose(x, 1, 2) + 1e-6
 
