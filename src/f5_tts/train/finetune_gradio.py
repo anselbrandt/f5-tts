@@ -2078,11 +2078,15 @@ Reduce the model size from 5GB to 1.3GB. The new checkpoint can be used for infe
     help="Share the app via Gradio share link",
 )
 @click.option("--api", "-a", default=True, is_flag=True, help="Allow API access")
-def main(port, host, share, api):
+def main(port, host, share, api, root_path):
     global app
     print("Starting app...")
     app.queue(api_open=api).launch(
-        server_name=host, server_port=port, share=share, show_api=api
+        server_name=host,
+        server_port=port,
+        share=share,
+        show_api=api,
+        root_path=root_path,
     )
 
 
